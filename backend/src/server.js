@@ -12,6 +12,7 @@ const researchRoutes = require('./routes/research');
 const announcementRoutes = require('./routes/announcements');
 const adminRoutes = require('./routes/admin');
 const scraperRoutes = require('./routes/scraper');
+const gmailRoutes = require('./routes/gmail');
 const { scrapeAllResearch } = require('./scraper/researchScraper');
 const { scrapeAllClubAnnouncements } = require('./scraper/clubScraper');
 
@@ -31,6 +32,7 @@ app.use('/api/research', researchRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/scraper', scraperRoutes);
+app.use('/api/gmail', gmailRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

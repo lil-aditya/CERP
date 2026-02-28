@@ -105,6 +105,45 @@ CREATE TABLE IF NOT EXISTS publications (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Gmail OAuth tokens (one per user, encrypted refresh token)
+CREATE TABLE IF NOT EXISTS gmail_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT,
+  token_expiry TEXT,
+  gmail_email TEXT,
+  connected_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Cached Gmail emails (normalized)
+CREATE TABLE IF NOT EXISTS gmail_emails (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  message_id TEXT NOT NULL,
+  from_email TEXT,
+  from_name TEXT,
+  subject TEXT,
+  snippet TEXT,
+  body_text TEXT,
+  received_at TEXT,
+  category TEXT,
+  matched_club_id INTEGER REFERENCES clubs(id) ON DELETE SET NULL,
+  confidence REAL DEFAULT 0,
+  is_event INTEGER DEFAULT 0,
+  fetched_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(user_id, message_id)
+);
+
+-- Email matching rules (keyword + sender patterns per club)
+CREATE TABLE IF NOT EXISTS email_match_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  club_id INTEGER REFERENCES clubs(id) ON DELETE CASCADE,
+  rule_type TEXT NOT NULL CHECK(rule_type IN ('sender', 'keyword')),
+  pattern TEXT NOT NULL,
+  UNIQUE(club_id, rule_type, pattern)
+);
+
 -- Indexes for search & filtering performance
 CREATE INDEX IF NOT EXISTS idx_publications_year ON publications(publication_year);
 CREATE INDEX IF NOT EXISTS idx_publications_citations ON publications(citation_count);
@@ -115,3 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_events_club ON events(club_id);
 CREATE INDEX IF NOT EXISTS idx_events_category ON events(category);
 CREATE INDEX IF NOT EXISTS idx_announcements_club ON announcements(club_id);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(published_at);
+CREATE INDEX IF NOT EXISTS idx_gmail_emails_user ON gmail_emails(user_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_emails_category ON gmail_emails(category);
+CREATE INDEX IF NOT EXISTS idx_gmail_emails_club ON gmail_emails(matched_club_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_emails_received ON gmail_emails(received_at);

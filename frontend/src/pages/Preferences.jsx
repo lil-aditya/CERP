@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
-import { Check, Save } from 'lucide-react';
+import { Check, Save, Mail, MailX, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 
 export default function Preferences() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [clubs, setClubs] = useState([]);
   const [domains, setDomains] = useState([]);
   const [selectedClubs, setSelectedClubs] = useState([]);
@@ -13,8 +15,29 @@ export default function Preferences() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Gmail state
+  const [gmailStatus, setGmailStatus] = useState({ connected: false, email: null });
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailSyncing, setGmailSyncing] = useState(false);
+  const [gmailRecategorizing, setGmailRecategorizing] = useState(false);
+  const [gmailMessage, setGmailMessage] = useState(null);
+
   useEffect(() => {
     loadData();
+    checkGmailStatus();
+
+    // Handle Gmail OAuth callback params
+    const gmailParam = searchParams.get('gmail');
+    if (gmailParam === 'connected') {
+      const email = searchParams.get('email');
+      setGmailStatus({ connected: true, email });
+      setGmailMessage({ type: 'success', text: `Gmail connected: ${email}` });
+      setSearchParams({}, { replace: true }); // clean URL
+    } else if (gmailParam === 'error') {
+      const reason = searchParams.get('reason');
+      setGmailMessage({ type: 'error', text: `Gmail connection failed: ${reason}` });
+      setSearchParams({}, { replace: true });
+    }
   }, []);
 
   const loadData = async () => {
@@ -30,6 +53,72 @@ export default function Preferences() {
       setSelectedDomains(prefsRes.data.domains?.map(d => d.id) || []);
     } catch (err) { console.error(err); }
     setLoading(false);
+  };
+
+  const checkGmailStatus = async () => {
+    try {
+      const res = await api.get('/gmail/status');
+      setGmailStatus(res.data);
+    } catch (err) { console.error('Gmail status check failed:', err); }
+  };
+
+  const connectGmail = async () => {
+    setGmailLoading(true);
+    try {
+      const res = await api.get('/gmail/auth-url');
+      // Open Google consent in same window (will redirect back)
+      window.location.href = res.data.url;
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to start Gmail connection';
+      setGmailMessage({ type: 'error', text: msg });
+      setGmailLoading(false);
+    }
+  };
+
+  const disconnectGmail = async () => {
+    if (!confirm('Disconnect Gmail? This will remove all cached email data.')) return;
+    setGmailLoading(true);
+    try {
+      await api.delete('/gmail/disconnect');
+      setGmailStatus({ connected: false, email: null });
+      setGmailMessage({ type: 'success', text: 'Gmail disconnected.' });
+    } catch (err) {
+      setGmailMessage({ type: 'error', text: 'Failed to disconnect Gmail.' });
+    }
+    setGmailLoading(false);
+  };
+
+  const syncGmail = async () => {
+    setGmailSyncing(true);
+    try {
+      const res = await api.post('/gmail/sync');
+      setGmailMessage({
+        type: 'success',
+        text: `Synced! ${res.data.fetched} emails checked, ${res.data.new_emails} new.`,
+      });
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Sync failed';
+      setGmailMessage({ type: 'error', text: msg });
+      if (err.response?.status === 401) {
+        setGmailStatus({ connected: false, email: null });
+      }
+    }
+    setGmailSyncing(false);
+  };
+
+  const recategorizeGmail = async () => {
+    setGmailRecategorizing(true);
+    try {
+      const res = await api.post('/gmail/recategorize');
+      setGmailMessage({
+        type: 'success',
+        text: `Smart re-categorization done! ${res.data.updated} emails updated with NLP.`,
+      });
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Re-categorization failed';
+      setGmailMessage({ type: 'error', text: msg });
+    }
+    setGmailRecategorizing(false);
   };
 
   const toggleClub = (id) => {
@@ -55,6 +144,14 @@ export default function Preferences() {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+
+      // Auto re-categorize cached Gmail emails when preferences change
+      if (gmailStatus.connected) {
+        try {
+          const res = await api.post('/gmail/recategorize');
+          console.log(`Re-categorized ${res.data.updated} emails after preference update`);
+        } catch (err) { console.log('Recategorize skipped:', err.message); }
+      }
     } catch (err) { console.error(err); }
     setSaving(false);
   };
@@ -68,6 +165,57 @@ export default function Preferences() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Preferences</h1>
         <p className="text-slate-500 text-sm mt-1">Choose the clubs and research domains you're interested in</p>
+      </div>
+
+      {/* Gmail Connection */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
+        <div className="flex items-center gap-3 mb-1">
+          <Mail className="w-5 h-5 text-red-500" />
+          <h2 className="font-semibold text-slate-800">Gmail Integration</h2>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Connect your institute Gmail to automatically pull club announcements, events, and updates into CERP based on your preferences.
+        </p>
+
+        {gmailMessage && (
+          <div className={`mb-4 px-4 py-2.5 rounded-lg text-sm ${
+            gmailMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {gmailMessage.text}
+          </div>
+        )}
+
+        {gmailStatus.connected ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm text-green-700 font-medium">Connected: {gmailStatus.email}</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={syncGmail} disabled={gmailSyncing}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition disabled:opacity-50">
+                {gmailSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                {gmailSyncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+              <button onClick={recategorizeGmail} disabled={gmailRecategorizing}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition disabled:opacity-50">
+                {gmailRecategorizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {gmailRecategorizing ? 'Analyzing...' : 'Re-categorize (AI)'}
+              </button>
+              <button onClick={disconnectGmail} disabled={gmailLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                <MailX className="w-4 h-4" />
+                Disconnect
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={connectGmail} disabled={gmailLoading}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50">
+            {gmailLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            {gmailLoading ? 'Connecting...' : 'Connect Gmail'}
+          </button>
+        )}
       </div>
 
       {/* Clubs Selection */}

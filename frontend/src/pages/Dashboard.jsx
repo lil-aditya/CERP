@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { CalendarDays, BookOpen, Megaphone, Users, TrendingUp, Clock } from 'lucide-react';
+import { CalendarDays, BookOpen, Megaphone, Users, TrendingUp, Clock, Mail } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -10,6 +10,8 @@ export default function Dashboard() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [recentAnnouncements, setRecentAnnouncements] = useState([]);
   const [recentPapers, setRecentPapers] = useState([]);
+  const [gmailFeed, setGmailFeed] = useState([]);
+  const [gmailConnected, setGmailConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +28,16 @@ export default function Dashboard() {
       setUpcomingEvents(eventsRes.data.slice(0, 5));
       setRecentAnnouncements(annRes.data);
       setRecentPapers(researchRes.data.slice(0, 5));
+
+      // Load Gmail feed (silently — won't fail if not connected)
+      try {
+        const gmailStatusRes = await api.get('/gmail/status');
+        if (gmailStatusRes.data.connected) {
+          setGmailConnected(true);
+          const gmailRes = await api.get('/gmail/feed', { params: { limit: 10 } });
+          setGmailFeed(gmailRes.data);
+        }
+      } catch (err) { /* Gmail not connected — that's fine */ }
     } catch (err) {
       console.error('Dashboard error:', err);
     } finally {
@@ -163,6 +175,43 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Gmail Feed (only if connected) */}
+      {gmailConnected && gmailFeed.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+              <Mail className="w-4 h-4 text-red-500" /> From Your Inbox
+            </h2>
+            <Link to="/preferences" className="text-xs text-primary-600 hover:text-primary-700 font-medium">Manage →</Link>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {gmailFeed.map((email) => (
+              <div key={email.id} className="px-6 py-3 hover:bg-slate-50 transition">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      {email.category && email.category !== 'General' && (
+                        <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full font-medium truncate max-w-[140px]">
+                          {email.category}
+                        </span>
+                      )}
+                      {email.is_event === 1 && (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded-full font-medium">Event</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-slate-800 truncate">{email.subject}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{email.from_name} · {email.snippet?.substring(0, 80)}...</p>
+                  </div>
+                  <span className="text-xs text-slate-400 whitespace-nowrap ml-2">
+                    {email.received_at ? formatDate(email.received_at) : ''}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Research */}
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm">
