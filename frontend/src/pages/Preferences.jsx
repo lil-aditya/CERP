@@ -157,53 +157,67 @@ export default function Preferences() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="cyber-loader" />
+      </div>
+    );
   }
 
   return (
     <div className="animate-fade-in space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Preferences</h1>
-        <p className="text-slate-500 text-sm mt-1">Choose the clubs and research domains you're interested in</p>
+      {/* Header */}
+      <div className="relative">
+        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-xl" />
+        <div className="relative glass-card rounded-2xl p-6">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Preferences
+          </h1>
+          <p className="text-slate-400 text-sm mt-2">Configure your personalized experience and integrations</p>
+        </div>
       </div>
 
       {/* Gmail Connection */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-1">
-          <Mail className="w-5 h-5 text-red-500" />
-          <h2 className="font-semibold text-slate-800">Gmail Integration</h2>
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/25">
+            <Mail className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Gmail Integration</h2>
+            <p className="text-xs text-slate-500">Connect your institute Gmail for automatic updates</p>
+          </div>
         </div>
-        <p className="text-xs text-slate-400 mb-4">
-          Connect your institute Gmail to automatically pull club announcements, events, and updates into CERP based on your preferences.
-        </p>
 
         {gmailMessage && (
-          <div className={`mb-4 px-4 py-2.5 rounded-lg text-sm ${
-            gmailMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          <div className={`mt-4 px-4 py-3 rounded-xl text-sm border ${
+            gmailMessage.type === 'success' 
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+              : 'bg-red-500/10 text-red-400 border-red-500/20'
           }`}>
             {gmailMessage.text}
           </div>
         )}
 
         {gmailStatus.connected ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm text-green-700 font-medium">Connected: {gmailStatus.email}</span>
+          <div className="space-y-4 mt-4">
+            <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50" />
+              <span className="text-sm text-emerald-400 font-medium">Connected: {gmailStatus.email}</span>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-3 flex-wrap">
               <button onClick={syncGmail} disabled={gmailSyncing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition disabled:opacity-50">
+                className="btn-primary flex items-center gap-2">
                 {gmailSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                 {gmailSyncing ? 'Syncing...' : 'Sync Now'}
               </button>
               <button onClick={recategorizeGmail} disabled={gmailRecategorizing}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition disabled:opacity-50">
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 disabled:opacity-50">
                 {gmailRecategorizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {gmailRecategorizing ? 'Analyzing...' : 'Re-categorize (AI)'}
               </button>
               <button onClick={disconnectGmail} disabled={gmailLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition disabled:opacity-50">
+                className="btn-ghost flex items-center gap-2 text-red-400 hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10">
                 <MailX className="w-4 h-4" />
                 Disconnect
               </button>
@@ -211,7 +225,7 @@ export default function Preferences() {
           </div>
         ) : (
           <button onClick={connectGmail} disabled={gmailLoading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50">
+            className="mt-4 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-red-500/25 hover:shadow-red-500/40 disabled:opacity-50">
             {gmailLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
             {gmailLoading ? 'Connecting...' : 'Connect Gmail'}
           </button>
@@ -219,21 +233,28 @@ export default function Preferences() {
       </div>
 
       {/* Clubs Selection */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <h2 className="font-semibold text-slate-800 mb-1">Clubs</h2>
-        <p className="text-xs text-slate-400 mb-4">Select clubs to get personalized event feeds and announcements</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+            <span className="text-lg">🎯</span>
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Clubs</h2>
+            <p className="text-xs text-slate-500">Select clubs for personalized feeds</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {clubs.map((club) => {
             const selected = selectedClubs.includes(club.id);
             return (
               <button key={club.id} onClick={() => toggleClub(club.id)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition border ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all border ${
                   selected
-                    ? 'bg-primary-50 border-primary-200 text-primary-700'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 shadow-lg shadow-cyan-500/10'
+                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:border-white/20'
                 }`}>
-                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
-                  selected ? 'bg-primary-500' : 'border border-slate-300'
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-all ${
+                  selected ? 'bg-gradient-to-br from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/30' : 'border border-slate-600'
                 }`}>
                   {selected && <Check className="w-3.5 h-3.5 text-white" />}
                 </div>
@@ -245,21 +266,28 @@ export default function Preferences() {
       </div>
 
       {/* Domains Selection */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <h2 className="font-semibold text-slate-800 mb-1">Research Domains</h2>
-        <p className="text-xs text-slate-400 mb-4">Select domains to discover relevant faculty research publications</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+            <span className="text-lg">🔬</span>
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Research Domains</h2>
+            <p className="text-xs text-slate-500">Select domains to discover relevant publications</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {domains.map((domain) => {
             const selected = selectedDomains.includes(domain.id);
             return (
               <button key={domain.id} onClick={() => toggleDomain(domain.id)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left transition border ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all border ${
                   selected
-                    ? 'bg-accent-50 border-accent-200 text-accent-700'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-lg shadow-purple-500/10'
+                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:border-white/20'
                 }`}>
-                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
-                  selected ? 'bg-accent-500' : 'border border-slate-300'
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-all ${
+                  selected ? 'bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30' : 'border border-slate-600'
                 }`}>
                   {selected && <Check className="w-3.5 h-3.5 text-white" />}
                 </div>
@@ -273,13 +301,14 @@ export default function Preferences() {
       {/* Save */}
       <div className="flex items-center gap-4">
         <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-lg transition disabled:opacity-50">
+          className="btn-neon flex items-center gap-2 px-8 py-3">
           <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save Preferences'}
         </button>
         {saved && (
-          <span className="text-sm text-green-600 flex items-center gap-1 animate-fade-in">
-            <Check className="w-4 h-4" /> Preferences saved!
+          <span className="text-sm text-emerald-400 flex items-center gap-2 animate-fade-in">
+            <Check className="w-4 h-4" /> 
+            <span className="font-medium">Preferences saved!</span>
           </span>
         )}
       </div>

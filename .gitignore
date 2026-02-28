@@ -6,6 +6,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Build output
 dist/
@@ -25,7 +26,17 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
+/backend/cerp.db*
 
 # Logs
 *.log
+npm-debug.log*
+
+# Test data files (large JSON files)
+iitj_inst.json
+openalex_authors*.json
+real_iitj_authors.json
+
+# SSL certificates
+nginx/ssl/
 npm-debug.log*

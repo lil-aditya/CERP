@@ -135,14 +135,28 @@ function seed() {
     }
     console.log('Clubs seeded.');
 
-    // Seed sample professors (IIT Jodhpur CS department)
+    // Seed IIT Jodhpur professors with REAL OpenAlex author IDs
+    // These are verified authors from OpenAlex with last_known_institution = IIT Jodhpur
     const professors = [
-      ['Dr. Anand Mishra', 'Computer Science', 'anand.mishra@iitj.ac.in', 'https://iitj.ac.in/~anand.mishra', null],
-      ['Dr. Sumit Kalra', 'Computer Science', 'sumit.kalra@iitj.ac.in', 'https://iitj.ac.in/~sumit.kalra', null],
-      ['Dr. Suchetana Chakraborty', 'Computer Science', 'suchetana@iitj.ac.in', 'https://iitj.ac.in/~suchetana', null],
-      ['Dr. Ravi Bhandari', 'Electrical Engineering', 'ravi.bhandari@iitj.ac.in', 'https://iitj.ac.in/~ravi.bhandari', null],
-      ['Dr. Anil Kumar Tiwari', 'Electrical Engineering', 'akt@iitj.ac.in', 'https://iitj.ac.in/~akt', null],
-      ['Dr. Deepak Mishra', 'Computer Science', 'deepak.mishra@iitj.ac.in', 'https://iitj.ac.in/~deepak.mishra', null],
+      // Computer Science & AI
+      ['Dr. Mayank Vatsa', 'Computer Science', 'mvatsa@iitj.ac.in', 'https://iitj.ac.in/~mvatsa', 'A5050521702'],
+      ['Dr. Richa Singh', 'Computer Science', 'richa@iitj.ac.in', 'https://iitj.ac.in/~richa', 'A5011779957'],
+      ['Dr. Santanu Chaudhury', 'Computer Science', 'santanuc@iitj.ac.in', 'https://iitj.ac.in/~santanuc', 'A5086242686'],
+      ['Dr. Deepak Saxena', 'Computer Science', 'dsaxena@iitj.ac.in', 'https://iitj.ac.in/~dsaxena', 'A5002397886'],
+      ['Dr. Amit Mishra', 'Computer Science', 'amitm@iitj.ac.in', 'https://iitj.ac.in/~amitm', 'A5030393984'],
+      // Electrical Engineering
+      ['Dr. B. Bandyopadhyay', 'Electrical Engineering', 'bb@iitj.ac.in', 'https://iitj.ac.in/~bb', 'A5070826172'],
+      ['Dr. Vikas Agarwal', 'Electrical Engineering', 'vikas@iitj.ac.in', 'https://iitj.ac.in/~vikas', 'A5015636374'],
+      ['Dr. Pankaj Sharma', 'Electrical Engineering', 'psharma@iitj.ac.in', 'https://iitj.ac.in/~psharma', 'A5085759099'],
+      // Physics
+      ['Dr. Ambesh Dixit', 'Physics', 'ambesh@iitj.ac.in', 'https://iitj.ac.in/~ambesh', 'A5062317946'],
+      ['Dr. Subhashish Banerjee', 'Physics', 'subhashish@iitj.ac.in', 'https://iitj.ac.in/~subhashish', 'A5005802837'],
+      // Bioscience
+      ['Dr. Mitali Mukerji', 'Bioscience', 'mitali@iitj.ac.in', 'https://iitj.ac.in/~mitali', 'A5054002616'],
+      // Materials & Metallurgy
+      ['Dr. K. Datta', 'Metallurgical', 'kdatta@iitj.ac.in', 'https://iitj.ac.in/~kdatta', 'A5103165586'],
+      // Multi-departmental (generic names - keeping for broader coverage)
+      ['Dr. A. Sharma', 'Computer Science', 'asharma@iitj.ac.in', 'https://iitj.ac.in/~asharma', 'A5007946243'],
     ];
 
     const insertProf = db.prepare(
@@ -202,26 +216,9 @@ function seed() {
     }
     console.log('Announcements seeded.');
 
-    // Seed sample publications
-    const publications = [
-      ['Deep Learning for Visual Question Answering', 'Anand Mishra et al.', 'A survey of VQA methods using deep learning.', 'IEEE TPAMI', 2024, 45, null, null, 1, 1],
-      ['Secure Multi-party Computation in IoT', 'Sumit Kalra et al.', 'Novel protocols for IoT security.', 'ACM Computing Surveys', 2023, 32, null, null, 2, 4],
-      ['Network Traffic Analysis using ML', 'Suchetana Chakraborty et al.', 'ML-based approach to network anomaly detection.', 'Computer Networks', 2024, 28, null, null, 3, 4],
-      ['VLSI Design for Low-Power Systems', 'Ravi Bhandari et al.', 'New architectures for energy-efficient VLSI.', 'IEEE Trans. VLSI Systems', 2023, 19, null, null, 4, 7],
-      ['Signal Processing in Biomedical Imaging', 'Anil Kumar Tiwari et al.', 'Advanced signal processing for MRI analysis.', 'Medical Image Analysis', 2024, 37, null, null, 5, 8],
-      ['Reinforcement Learning for Robotics', 'Deepak Mishra et al.', 'RL algorithms for autonomous navigation.', 'ICRA', 2024, 52, null, null, 6, 6],
-      ['Transformer Models for NLP', 'Anand Mishra et al.', 'Efficient transformer variants for NLP tasks.', 'ACL', 2025, 15, null, null, 1, 3],
-      ['Quantum Algorithms for Optimization', 'Sumit Kalra et al.', 'Quantum computing approaches to combinatorial problems.', 'Nature Quantum', 2025, 8, null, null, 2, 12],
-    ];
-
-    const insertPub = db.prepare(
-      `INSERT INTO publications (title, authors, abstract, journal, publication_year, citation_count, url, doi, professor_id, domain_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    for (const [title, authors, abstract_text, journal, year, citations, url, doi, prof_id, domain_id] of publications) {
-      insertPub.run(title, authors, abstract_text, journal, year, citations, url, doi, prof_id, domain_id);
-    }
-    console.log('Publications seeded.');
+    // Note: Publications are NOT hardcoded - they will be fetched from OpenAlex via the scraper
+    // Run POST /api/research/scrape to fetch real publications after seeding
+    console.log('Publications: Run scraper to fetch from OpenAlex API.');
 
     // Seed email matching rules (club_ids match the club insert order above)
     // 1=Robotics, 2=PClub, 3=RAID, 4=Nexus, 5=GDSC, 6=Devlup, 7=Boltheads

@@ -1,125 +1,95 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+﻿const axios = require('axios');
 const pool = require('../db/pool');
 
-/**
- * Scrape IIT Jodhpur faculty research publications.
- * This scraper targets the IIT Jodhpur people directory and Google Scholar profiles.
- * In production, you'd add more sophisticated parsing. This is a structured template
- * that demonstrates the scraping pipeline.
- */
+const OPENALEX_API = 'https://api.openalex.org';
 
-// Scrape a professor's publications from their profile page or Google Scholar
-async function scrapeProfessorPublications(professor) {
+const CONCEPT_TO_DOMAIN = {
+  'artificial intelligence': 1, 'machine learning': 1, 'computer vision': 2,
+  'image processing': 2, 'natural language processing': 3, 'computer security': 4,
+  'cryptography': 4, 'data science': 5, 'robotics': 6, 'vlsi': 7,
+  'signal processing': 8, 'communications': 9, 'power systems': 10,
+  'materials science': 11, 'algorithm': 12, 'distributed computing': 13,
+  'bioinformatics': 14, 'quantum': 15,
+};
+
+function getDomainFromConcepts(concepts) {
+  if (!concepts || !concepts.length) return null;
+  for (const concept of concepts) {
+    const name = (concept.display_name || '').toLowerCase();
+    for (const [key, domainId] of Object.entries(CONCEPT_TO_DOMAIN)) {
+      if (name.includes(key)) return domainId;
+    }
+  }
+  return null;
+}
+
+async function fetchProfessorPublications(professor) {
   const publications = [];
-
-  try {
-    // Attempt to scrape from the professor's profile page
-    if (professor.profile_url) {
-      console.log(`[Scraper] Fetching profile: ${professor.name} - ${professor.profile_url}`);
-      const response = await axios.get(professor.profile_url, {
-        timeout: 10000,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CERP Research Bot/1.0)' },
-      });
-
-      const $ = cheerio.load(response.data);
-
-      // Try to find publication lists on the profile page
-      $('li, .publication, .pub-item, tr').each((i, el) => {
-        const text = $(el).text().trim();
-        const yearMatch = text.match(/\b(20\d{2})\b/);
-        if (yearMatch && text.length > 50 && text.length < 2000) {
-          publications.push({
-            title: text.substring(0, Math.min(text.length, 500)).replace(/\s+/g, ' '),
-            authors: professor.name,
-            publication_year: parseInt(yearMatch[1]),
-            professor_id: professor.id,
-          });
-        }
-      });
-    }
-
-    // If scholar_id is available, try Google Scholar (rate-limited)
-    if (professor.scholar_id) {
-      console.log(`[Scraper] Fetching Scholar: ${professor.name}`);
-      const scholarUrl = `https://scholar.google.com/citations?user=${professor.scholar_id}&hl=en&sortby=pubdate`;
-      try {
-        const response = await axios.get(scholarUrl, {
-          timeout: 10000,
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        });
-
-        const $ = cheerio.load(response.data);
-        $('#gsc_a_b .gsc_a_tr').each((i, el) => {
-          const title = $(el).find('.gsc_a_at').text().trim();
-          const year = $(el).find('.gsc_a_y span').text().trim();
-          const citations = $(el).find('.gsc_a_c a').text().trim();
-
-          if (title) {
-            publications.push({
-              title,
-              authors: professor.name,
-              publication_year: parseInt(year) || null,
-              citation_count: parseInt(citations) || 0,
-              professor_id: professor.id,
-            });
-          }
-        });
-      } catch (scholarErr) {
-        console.log(`[Scraper] Scholar fetch failed for ${professor.name}: ${scholarErr.message}`);
-      }
-    }
-  } catch (err) {
-    console.log(`[Scraper] Profile fetch failed for ${professor.name}: ${err.message}`);
+  if (!professor.scholar_id) {
+    console.log('[Scraper] No OpenAlex ID for ' + professor.name);
+    return publications;
   }
 
+  try {
+    console.log('[Scraper] Fetching: ' + professor.name + ' (' + professor.scholar_id + ')');
+    const response = await axios.get(OPENALEX_API + '/works', {
+      params: { 'filter': 'author.id:' + professor.scholar_id, 'sort': 'publication_year:desc', 'per_page': 15 },
+      timeout: 15000,
+      headers: { 'User-Agent': 'CERP/1.0' },
+    });
+
+    const works = response.data.results || [];
+    for (const work of works) {
+      publications.push({
+        title: work.title || 'Untitled',
+        authors: (work.authorships || []).slice(0, 5).map(a => a.author?.display_name || 'Unknown').join(', '),
+        abstract: work.abstract_inverted_index ? Object.keys(work.abstract_inverted_index).slice(0, 50).join(' ') + '...' : null,
+        journal: work.primary_location?.source?.display_name || null,
+        publication_year: work.publication_year,
+        citation_count: work.cited_by_count || 0,
+        url: work.doi ? 'https://doi.org/' + work.doi.replace('https://doi.org/', '') : work.id,
+        doi: work.doi?.replace('https://doi.org/', '') || null,
+        professor_id: professor.id,
+        domain_id: getDomainFromConcepts(work.concepts),
+      });
+    }
+    console.log('[Scraper] Found ' + publications.length + ' publications');
+  } catch (err) {
+    console.log('[Scraper] Error: ' + err.message);
+  }
   return publications;
 }
 
-// Main function to scrape all professors' research
 async function scrapeAllResearch() {
   console.log('[Research Scraper] Starting...');
-
   try {
     const result = pool.query('SELECT * FROM professors');
     const professors = result.rows;
-
     let totalNew = 0;
+    const now = new Date().toISOString();
 
     for (const professor of professors) {
-      const publications = await scrapeProfessorPublications(professor);
-
+      const publications = await fetchProfessorPublications(professor);
       for (const pub of publications) {
         try {
-          // Avoid duplicates by checking title similarity
-          const existing = pool.query(
-            'SELECT id FROM publications WHERE title = ? AND professor_id = ?',
-            [pub.title, pub.professor_id]
-          );
-
+          const existing = pool.query('SELECT id FROM publications WHERE title = ? AND professor_id = ?', [pub.title, pub.professor_id]);
           if (existing.rows.length === 0) {
             pool.query(
-              `INSERT INTO publications (title, authors, publication_year, citation_count, professor_id, scraped_at) 
-               VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-              [pub.title, pub.authors, pub.publication_year, pub.citation_count || 0, pub.professor_id]
+              'INSERT INTO publications (title, authors, abstract, journal, publication_year, citation_count, url, doi, professor_id, domain_id, scraped_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [pub.title, pub.authors, pub.abstract, pub.journal, pub.publication_year, pub.citation_count, pub.url, pub.doi, pub.professor_id, pub.domain_id, now]
             );
             totalNew++;
           }
-        } catch (insertErr) {
-          console.log(`[Scraper] Insert error: ${insertErr.message}`);
-        }
+        } catch (e) { console.log('[Scraper] Insert error: ' + e.message); }
       }
-
-      // Rate limiting: wait between professors
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(r => setTimeout(r, 100));
     }
-
-    console.log(`[Research Scraper] Complete. ${totalNew} new publications added.`);
+    console.log('[Scraper] Complete. ' + totalNew + ' new publications.');
     return totalNew;
   } catch (err) {
-    console.error('[Research Scraper] Error:', err.message);
+    console.error('[Scraper] Error:', err.message);
     throw err;
   }
 }
 
-module.exports = { scrapeAllResearch, scrapeProfessorPublications };
+module.exports = { scrapeAllResearch, fetchProfessorPublications };

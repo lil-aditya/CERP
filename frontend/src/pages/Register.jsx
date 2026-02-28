@@ -1,7 +1,33 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Sparkles, UserPlus, Rocket } from 'lucide-react';
+
+// Animated particles for register page
+function RegisterParticles() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(25)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            width: `${2 + Math.random() * 4}px`,
+            height: `${2 + Math.random() * 4}px`,
+            background: i % 3 === 0 ? '#00f5ff' : i % 3 === 1 ? '#bf00ff' : '#00ff88',
+            animation: `particle-float ${6 + Math.random() * 4}s ease-in-out infinite`,
+            animationDelay: `${Math.random() * 8}s`,
+            opacity: 0.4,
+          }}
+        />
+      ))}
+      <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/3 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+    </div>
+  );
+}
 
 export default function Register() {
   const { register } = useAuth();
@@ -30,56 +56,96 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-accent-50 p-4">
-      <div className="w-full max-w-md animate-fade-in">
+    <div className="min-h-screen flex items-center justify-center bg-cyber-gradient p-4 relative overflow-hidden">
+      <RegisterParticles />
+      
+      <div className="w-full max-w-md animate-slide-up relative z-10">
+        {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 mb-4">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="relative inline-block">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-cyan-500 flex items-center justify-center mb-4 mx-auto animate-float">
+              <GraduationCap className="w-10 h-10 text-white" />
+            </div>
+            <div className="absolute -inset-2 bg-gradient-to-br from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-xl opacity-50 -z-10 animate-pulse" />
+            <Rocket className="absolute -top-2 -right-2 w-6 h-6 text-green-400 animate-pulse" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800">Join CERP</h1>
-          <p className="text-slate-500 mt-2">Create your account</p>
+          <h1 className="text-4xl font-bold gradient-text mb-2">Join CERP</h1>
+          <p className="text-slate-400 flex items-center justify-center gap-2">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            Create your account
+          </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 p-8">
-          <h2 className="text-xl font-semibold text-slate-800 mb-6">Sign Up</h2>
+        {/* Form */}
+        <div className="glass-card rounded-2xl p-8 relative overflow-hidden">
+          {/* Glow effect */}
+          <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl" />
+
+          <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-purple-400" />
+            Sign Up
+          </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg animate-fade-in">{error}</div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="input-cyber w-full"
                 placeholder="Your full name" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="input-cyber w-full"
                 placeholder="your.email@iitj.ac.in" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
               <div className="relative">
                 <input type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-10"
+                  className="input-cyber w-full pr-10"
                   placeholder="Minimum 6 characters" required />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button type="button" onClick={() => setShowPass(!showPass)} 
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-purple-400 transition-colors">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
             <button type="submit" disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-lg transition-all disabled:opacity-50">
-              {loading ? 'Creating account...' : 'Create Account'}
+              className="btn-cyber w-full" style={{ background: 'linear-gradient(135deg, #bf00ff, #00f5ff)' }}>
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {loading ? (
+                  <>
+                    <div className="cyber-loader w-5 h-5 border-2" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="w-4 h-4" />
+                    Create Account
+                  </>
+                )}
+              </span>
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-500 mt-6">
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-[#12121a] text-slate-500">or</span>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-slate-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary-600 font-medium hover:text-primary-700">Sign in</Link>
+            <Link to="/login" className="text-purple-400 font-medium hover:text-purple-300 hover-line transition-colors">Sign in</Link>
           </p>
         </div>
       </div>

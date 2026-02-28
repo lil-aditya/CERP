@@ -1,30 +1,27 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
-import { Users, Globe, Search, Code, Palette, Trophy, Briefcase, Beaker, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Globe, Search, Code, Palette, Trophy, Briefcase, Beaker, ChevronDown, ChevronUp, Sparkles, Zap } from 'lucide-react';
 
 // Board definitions matching IIT Jodhpur structure
 const BOARDS = [
   {
     name: 'Board of Co-curricular Activity',
-    color: 'from-blue-600 to-indigo-600',
-    bgLight: 'bg-blue-50',
-    textColor: 'text-blue-700',
+    gradient: 'from-cyan-500 to-blue-600',
+    neonColor: 'cyan',
     icon: Code,
     clubNames: ['PClub', 'RAID', 'Robotics Society', 'Nexus', 'GDSC IIT Jodhpur', 'Devlup Labs', 'Boltheads', 'Quiz Society', 'Pheme', 'LitSoc'],
   },
   {
     name: 'Board of Art and Culture',
-    color: 'from-pink-500 to-rose-600',
-    bgLight: 'bg-pink-50',
-    textColor: 'text-pink-700',
+    gradient: 'from-pink-500 to-purple-600',
+    neonColor: 'pink',
     icon: Palette,
     clubNames: ['Dramebaaz', 'Ateliers', 'Raw', 'Sangam', 'Designerds', 'Framex', 'The Groove Theory', 'Inside'],
   },
   {
     name: 'Board of Student Sports',
-    color: 'from-orange-500 to-amber-600',
-    bgLight: 'bg-orange-50',
-    textColor: 'text-orange-700',
+    gradient: 'from-orange-500 to-red-600',
+    neonColor: 'orange',
     icon: Trophy,
     clubNames: [
       'Sports Council', 'Cricket Society', 'Basketball Society', 'Football Society',
@@ -35,9 +32,8 @@ const BOARDS = [
   },
   {
     name: 'Professional Clubs',
-    color: 'from-emerald-500 to-teal-600',
-    bgLight: 'bg-emerald-50',
-    textColor: 'text-emerald-700',
+    gradient: 'from-green-500 to-emerald-600',
+    neonColor: 'green',
     icon: Briefcase,
     clubNames: ['E-Cell', 'Quant Club'],
   },
@@ -67,6 +63,7 @@ const CLUB_TAGS = {
 
 // Generate a nice gradient for each club card icon
 const ICON_COLORS = [
+  'from-cyan-400 to-cyan-600',
   'from-blue-400 to-blue-600',
   'from-indigo-400 to-indigo-600',
   'from-violet-400 to-violet-600',
@@ -76,13 +73,9 @@ const ICON_COLORS = [
   'from-red-400 to-red-600',
   'from-orange-400 to-orange-600',
   'from-amber-400 to-amber-600',
-  'from-yellow-400 to-yellow-600',
-  'from-lime-400 to-lime-600',
   'from-green-400 to-green-600',
   'from-emerald-400 to-emerald-600',
   'from-teal-400 to-teal-600',
-  'from-cyan-400 to-cyan-600',
-  'from-sky-400 to-sky-600',
 ];
 
 export default function Clubs() {
@@ -131,72 +124,88 @@ export default function Clubs() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Clubs & Societies</h1>
-        <p className="text-slate-500 text-sm mt-1">Explore student organizations at IIT Jodhpur</p>
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+          <Users className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            Clubs & Societies
+            <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
+          </h1>
+          <p className="text-slate-400 text-sm">Explore student organizations at IIT Jodhpur</p>
+        </div>
       </div>
 
       {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
         <input
           type="text"
           placeholder="Search clubs..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          className="input-cyber w-full pl-11"
         />
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>
+        <div className="flex justify-center py-16"><div className="cyber-loader" /></div>
       ) : (
         <div className="space-y-8">
-          {boardData.map((board) => {
+          {boardData.map((board, boardIndex) => {
             if (board.clubs.length === 0) return null;
             const collapsed = collapsedBoards[board.name];
             const BoardIcon = board.icon;
             return (
-              <div key={board.name}>
+              <div key={board.name} className="animate-slide-up" style={{ animationDelay: `${boardIndex * 100}ms` }}>
                 {/* Board header */}
                 <button
                   onClick={() => toggleBoard(board.name)}
-                  className={`w-full flex items-center justify-between gap-3 px-5 py-3 rounded-xl bg-gradient-to-r ${board.color} text-white shadow-md hover:shadow-lg transition-shadow mb-4`}
+                  className={`w-full flex items-center justify-between gap-3 px-6 py-4 rounded-xl bg-gradient-to-r ${board.gradient} text-white shadow-lg hover:shadow-xl transition-all mb-4 group`}
+                  style={{ boxShadow: `0 10px 40px -10px rgba(0, 0, 0, 0.3)` }}
                 >
                   <div className="flex items-center gap-3">
-                    <BoardIcon className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                      <BoardIcon className="w-5 h-5" />
+                    </div>
                     <h2 className="font-bold text-sm tracking-wide">{board.name}</h2>
-                    <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium">{board.clubs.length}</span>
+                    <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">{board.clubs.length}</span>
                   </div>
-                  {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                  {collapsed ? <ChevronDown className="w-5 h-5 transition-transform" /> : <ChevronUp className="w-5 h-5 transition-transform" />}
                 </button>
 
                 {/* Club cards */}
                 {!collapsed && (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {board.clubs.map((club, idx) => {
                       const colorIdx = (club.id || idx) % ICON_COLORS.length;
                       return (
-                        <div key={club.id} className="bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 overflow-hidden group">
-                          <div className={`h-1.5 bg-gradient-to-r ${board.color}`} />
-                          <div className="p-4">
+                        <div 
+                          key={club.id} 
+                          className="glass-card rounded-xl overflow-hidden transition-all hover:scale-[1.02] animate-slide-up group"
+                          style={{ animationDelay: `${idx * 50}ms` }}
+                        >
+                          <div className={`h-1 bg-gradient-to-r ${board.gradient}`} />
+                          <div className="p-5">
                             <div className="flex items-start gap-3">
-                              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${ICON_COLORS[colorIdx]} flex items-center justify-center text-white font-bold text-base shrink-0 shadow-sm`}>
+                              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${ICON_COLORS[colorIdx]} flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg`}>
                                 {club.name.charAt(0)}
                               </div>
-                              <div className="min-w-0">
-                                <h3 className="text-sm font-bold text-slate-800 truncate">{club.name}</h3>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="text-sm font-bold text-white truncate group-hover:text-cyan-400 transition-colors">{club.name}</h3>
                                 {CLUB_TAGS[club.name] && (
-                                  <span className={`text-[11px] font-medium ${board.textColor}`}>{CLUB_TAGS[club.name]}</span>
+                                  <span className="text-[11px] font-medium text-slate-400">{CLUB_TAGS[club.name]}</span>
                                 )}
                               </div>
                             </div>
                             {club.description && (
-                              <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed">{club.description}</p>
+                              <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">{club.description}</p>
                             )}
                             {club.website_url && (
                               <a href={club.website_url} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 mt-2.5 text-xs text-primary-600 hover:text-primary-700 font-medium">
+                                className="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400 hover:text-cyan-300 font-medium transition-colors">
                                 <Globe className="w-3 h-3" /> Visit website
                               </a>
                             )}
@@ -213,23 +222,25 @@ export default function Clubs() {
           {/* Other clubs not in any board */}
           {otherClubs.length > 0 && (
             <div>
-              <h2 className="font-bold text-slate-700 text-sm mb-3 px-1">Other Organizations</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              <h2 className="font-bold text-slate-300 text-sm mb-4 px-1 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-purple-400" /> Other Organizations
+              </h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {otherClubs.map((club, idx) => (
-                  <div key={club.id} className="bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-4">
+                  <div key={club.id} className="glass-card rounded-xl p-5 transition-all hover:scale-[1.02]">
                     <div className="flex items-start gap-3">
-                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-white font-bold text-base shrink-0`}>
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
                         {club.name.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-slate-800">{club.name}</h3>
-                        <span className="text-[11px] text-slate-400">{club.category}</span>
+                        <h3 className="text-sm font-bold text-white">{club.name}</h3>
+                        <span className="text-[11px] text-slate-500">{club.category}</span>
                       </div>
                     </div>
-                    {club.description && <p className="text-xs text-slate-500 mt-2.5 line-clamp-2">{club.description}</p>}
+                    {club.description && <p className="text-xs text-slate-500 mt-3 line-clamp-2">{club.description}</p>}
                     {club.website_url && (
                       <a href={club.website_url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-2.5 text-xs text-primary-600 hover:text-primary-700 font-medium">
+                        className="inline-flex items-center gap-1 mt-3 text-xs text-cyan-400 hover:text-cyan-300 font-medium">
                         <Globe className="w-3 h-3" /> Visit website
                       </a>
                     )}
@@ -240,9 +251,9 @@ export default function Clubs() {
           )}
 
           {filteredClubs.length === 0 && (
-            <div className="text-center py-16 text-slate-400">
-              <Users className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-              <p>No clubs found matching "{search}"</p>
+            <div className="text-center py-20 glass-card rounded-xl">
+              <Users className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <p className="text-slate-400 text-lg">No clubs found matching "{search}"</p>
             </div>
           )}
         </div>

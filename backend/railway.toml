@@ -1,0 +1,12 @@
+# Railway Deployment Configuration
+# Deploy at: https://railway.app
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node src/server.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

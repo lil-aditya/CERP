@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireAdmin } = require('../middleware/auth');
+const { scrapeAllResearch } = require('../scraper/researchScraper');
 
 const router = express.Router();
 
@@ -108,7 +109,19 @@ router.get('/domains', (req, res) => {
   }
 });
 
-// GET /api/research/:id
+// POST /api/research/scrape - Trigger scraping of publications from OpenAlex
+router.post('/scrape', authenticate, async (req, res) => {
+  try {
+    console.log('[API] Scrape triggered by user:', req.user.id);
+    const newCount = await scrapeAllResearch();
+    res.json({ success: true, message: `Scraped ${newCount} new publications from OpenAlex.` });
+  } catch (err) {
+    console.error('Scrape error:', err);
+    res.status(500).json({ error: 'Failed to scrape publications.' });
+  }
+});
+
+// GET /api/research/:id - Must be LAST (catch-all param route)
 router.get('/:id', (req, res) => {
   try {
     const result = pool.query(

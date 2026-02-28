@@ -1,0 +1,25 @@
+runtime: nodejs20
+
+instance_class: F2
+
+env_variables:
+  NODE_ENV: "production"
+
+handlers:
+  - url: /api/.*
+    script: auto
+    secure: always
+
+  - url: /.*
+    static_files: frontend/dist/index.html
+    upload: frontend/dist/index.html
+    secure: always
+
+  - url: /assets/.*
+    static_dir: frontend/dist/assets
+    secure: always
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 10
+  target_cpu_utilization: 0.65
