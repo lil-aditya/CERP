@@ -25,10 +25,8 @@ async function scrapeProfessorPublications(professor) {
       const $ = cheerio.load(response.data);
 
       // Try to find publication lists on the profile page
-      // IIT Jodhpur faculty pages often have publication sections
       $('li, .publication, .pub-item, tr').each((i, el) => {
         const text = $(el).text().trim();
-        // Heuristic: if a list item contains a year pattern and is long enough, it's likely a publication
         const yearMatch = text.match(/\b(20\d{2})\b/);
         if (yearMatch && text.length > 50 && text.length < 2000) {
           publications.push({
@@ -83,7 +81,7 @@ async function scrapeAllResearch() {
   console.log('[Research Scraper] Starting...');
 
   try {
-    const result = await pool.query('SELECT * FROM professors');
+    const result = pool.query('SELECT * FROM professors');
     const professors = result.rows;
 
     let totalNew = 0;
@@ -94,15 +92,15 @@ async function scrapeAllResearch() {
       for (const pub of publications) {
         try {
           // Avoid duplicates by checking title similarity
-          const existing = await pool.query(
-            'SELECT id FROM publications WHERE title = $1 AND professor_id = $2',
+          const existing = pool.query(
+            'SELECT id FROM publications WHERE title = ? AND professor_id = ?',
             [pub.title, pub.professor_id]
           );
 
           if (existing.rows.length === 0) {
-            await pool.query(
+            pool.query(
               `INSERT INTO publications (title, authors, publication_year, citation_count, professor_id, scraped_at) 
-               VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+               VALUES (?, ?, ?, ?, ?, datetime('now'))`,
               [pub.title, pub.authors, pub.publication_year, pub.citation_count || 0, pub.professor_id]
             );
             totalNew++;

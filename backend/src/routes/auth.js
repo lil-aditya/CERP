@@ -14,20 +14,31 @@ router.post('/register', async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
     }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format.' });
+    }
 
     // Check if user exists
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = pool.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered.' });
     }
 
     const password_hash = await bcrypt.hash(password, 12);
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-      [name, email, password_hash, 'user']
-    );
 
-    const user = result.rows[0];
+    // Insert user – use raw sqlite for INSERT then SELECT (no RETURNING shim needed)
+    const db = pool.raw;
+    const info = db.prepare(
+      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)'
+    ).run(name, email.toLowerCase().trim(), password_hash, 'user');
+
+    const user = db.prepare(
+      'SELECT id, name, email, role FROM users WHERE id = ?'
+    ).get(info.lastInsertRowid);
+
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     });
@@ -35,6 +46,9 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ user, token });
   } catch (err) {
     console.error('Register error:', err);
+    if (err.message && err.message.includes('UNIQUE constraint')) {
+      return res.status(409).json({ error: 'Email already registered.' });
+    }
     res.status(500).json({ error: 'Registration failed.' });
   }
 });
@@ -48,7 +62,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = pool.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase().trim()]);
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
@@ -73,23 +87,29 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/auth/me
-router.get('/me', authenticate, async (req, res) => {
+// GET /api/auth/me — returns full profile with clubs + domains
+router.get('/me', authenticate, (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.role, u.created_at,
-              COALESCE(json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name)) FILTER (WHERE c.id IS NOT NULL), '[]') AS clubs,
-              COALESCE(json_agg(DISTINCT jsonb_build_object('id', d.id, 'name', d.name)) FILTER (WHERE d.id IS NOT NULL), '[]') AS domains
-       FROM users u
-       LEFT JOIN user_clubs uc ON u.id = uc.user_id
-       LEFT JOIN clubs c ON uc.club_id = c.id
-       LEFT JOIN user_domains ud ON u.id = ud.user_id
-       LEFT JOIN domains d ON ud.domain_id = d.id
-       WHERE u.id = $1
-       GROUP BY u.id`,
-      [req.user.id]
-    );
-    res.json(result.rows[0]);
+    const db = pool.raw;
+    const userRow = db.prepare(
+      'SELECT id, name, email, role, created_at FROM users WHERE id = ?'
+    ).get(req.user.id);
+
+    if (!userRow) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Fetch subscribed clubs
+    const clubs = db.prepare(
+      'SELECT c.id, c.name FROM clubs c INNER JOIN user_clubs uc ON c.id = uc.club_id WHERE uc.user_id = ?'
+    ).all(req.user.id);
+
+    // Fetch subscribed domains
+    const domains = db.prepare(
+      'SELECT d.id, d.name FROM domains d INNER JOIN user_domains ud ON d.id = ud.domain_id WHERE ud.user_id = ?'
+    ).all(req.user.id);
+
+    res.json({ ...userRow, clubs, domains });
   } catch (err) {
     console.error('Me error:', err);
     res.status(500).json({ error: 'Failed to fetch user info.' });

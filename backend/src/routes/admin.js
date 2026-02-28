@@ -1,16 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes require authentication and at least admin role
-
 // GET /api/admin/users - List all users (admin & superadmin)
-router.get('/users', authenticate, authorize('admin', 'superadmin'), async (req, res) => {
+router.get('/users', authenticate, requireAdmin, (req, res) => {
   try {
-    const result = await pool.query(
+    const result = pool.query(
       'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC'
     );
     res.json(result.rows);
@@ -20,7 +18,7 @@ router.get('/users', authenticate, authorize('admin', 'superadmin'), async (req,
 });
 
 // PUT /api/admin/users/:id/role - Change user role (superadmin only)
-router.put('/users/:id/role', authenticate, authorize('superadmin'), async (req, res) => {
+router.put('/users/:id/role', authenticate, requireSuperAdmin, (req, res) => {
   try {
     const { role } = req.body;
     if (!['user', 'admin', 'superadmin'].includes(role)) {
@@ -32,12 +30,15 @@ router.put('/users/:id/role', authenticate, authorize('superadmin'), async (req,
       return res.status(400).json({ error: 'Cannot change your own role.' });
     }
 
-    const result = await pool.query(
-      'UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, name, email, role',
-      [role, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found.' });
-    res.json({ message: 'Role updated.', user: result.rows[0] });
+    const db = pool.raw;
+    db.prepare("UPDATE users SET role = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(role, req.params.id);
+
+    const updated = db.prepare('SELECT id, name, email, role FROM users WHERE id = ?')
+      .get(req.params.id);
+
+    if (!updated) return res.status(404).json({ error: 'User not found.' });
+    res.json({ message: 'Role updated.', user: updated });
   } catch (err) {
     console.error('Role update error:', err);
     res.status(500).json({ error: 'Failed to update role.' });
@@ -45,12 +46,12 @@ router.put('/users/:id/role', authenticate, authorize('superadmin'), async (req,
 });
 
 // DELETE /api/admin/users/:id - Delete user (superadmin only)
-router.delete('/users/:id', authenticate, authorize('superadmin'), async (req, res) => {
+router.delete('/users/:id', authenticate, requireSuperAdmin, (req, res) => {
   try {
     if (parseInt(req.params.id) === req.user.id) {
       return res.status(400).json({ error: 'Cannot delete yourself.' });
     }
-    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
     res.json({ message: 'User deleted.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete user.' });
@@ -58,7 +59,7 @@ router.delete('/users/:id', authenticate, authorize('superadmin'), async (req, r
 });
 
 // POST /api/admin/users - Create user with specific role (superadmin only)
-router.post('/users', authenticate, authorize('superadmin'), async (req, res) => {
+router.post('/users', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     if (!name || !email || !password) {
@@ -68,14 +69,24 @@ router.post('/users', authenticate, authorize('superadmin'), async (req, res) =>
       return res.status(400).json({ error: 'Invalid role.' });
     }
 
+    // Check for duplicate email
+    const existing = pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Email already exists.' });
+    }
+
     const password_hash = await bcrypt.hash(password, 12);
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-      [name, email, password_hash, role || 'user']
-    );
-    res.status(201).json(result.rows[0]);
+    const db = pool.raw;
+    const info = db.prepare(
+      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)'
+    ).run(name, email.toLowerCase().trim(), password_hash, role || 'user');
+
+    const user = db.prepare('SELECT id, name, email, role FROM users WHERE id = ?')
+      .get(info.lastInsertRowid);
+
+    res.status(201).json(user);
   } catch (err) {
-    if (err.code === '23505') {
+    if (err.message && err.message.includes('UNIQUE constraint')) {
       return res.status(409).json({ error: 'Email already exists.' });
     }
     res.status(500).json({ error: 'Failed to create user.' });
@@ -83,22 +94,16 @@ router.post('/users', authenticate, authorize('superadmin'), async (req, res) =>
 });
 
 // GET /api/admin/stats - Dashboard stats (admin & superadmin)
-router.get('/stats', authenticate, authorize('admin', 'superadmin'), async (req, res) => {
+router.get('/stats', authenticate, requireAdmin, (req, res) => {
   try {
-    const [users, clubs, events, publications, announcements] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM users'),
-      pool.query('SELECT COUNT(*) FROM clubs'),
-      pool.query('SELECT COUNT(*) FROM events'),
-      pool.query('SELECT COUNT(*) FROM publications'),
-      pool.query('SELECT COUNT(*) FROM announcements'),
-    ]);
-    res.json({
-      users: parseInt(users.rows[0].count),
-      clubs: parseInt(clubs.rows[0].count),
-      events: parseInt(events.rows[0].count),
-      publications: parseInt(publications.rows[0].count),
-      announcements: parseInt(announcements.rows[0].count),
-    });
+    const db = pool.raw;
+    const users = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    const clubs = db.prepare('SELECT COUNT(*) as count FROM clubs').get().count;
+    const events = db.prepare('SELECT COUNT(*) as count FROM events').get().count;
+    const publications = db.prepare('SELECT COUNT(*) as count FROM publications').get().count;
+    const announcements = db.prepare('SELECT COUNT(*) as count FROM announcements').get().count;
+
+    res.json({ users, clubs, events, publications, announcements });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch stats.' });
   }

@@ -73,7 +73,7 @@ async function scrapeAllClubAnnouncements() {
   console.log('[Club Scraper] Starting...');
 
   try {
-    const result = await pool.query('SELECT * FROM clubs WHERE website_url IS NOT NULL');
+    const result = pool.query('SELECT * FROM clubs WHERE website_url IS NOT NULL');
     const clubs = result.rows;
 
     let totalNew = 0;
@@ -84,15 +84,15 @@ async function scrapeAllClubAnnouncements() {
       for (const ann of announcements) {
         try {
           // Avoid duplicates
-          const existing = await pool.query(
-            'SELECT id FROM announcements WHERE title = $1 AND club_id = $2',
+          const existing = pool.query(
+            'SELECT id FROM announcements WHERE title = ? AND club_id = ?',
             [ann.title, ann.club_id]
           );
 
           if (existing.rows.length === 0) {
-            await pool.query(
+            pool.query(
               `INSERT INTO announcements (title, content, source_url, club_id, published_at, scraped_at) 
-               VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+               VALUES (?, ?, ?, ?, ?, datetime('now'))`,
               [ann.title, ann.content, ann.source_url, ann.club_id, ann.published_at]
             );
             totalNew++;
