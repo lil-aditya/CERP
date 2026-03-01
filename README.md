@@ -1,5 +1,5 @@
 ﻿# CERP – Campus Engagement & Research Portal
-video link https://drive.google.com/file/d/1VvrAAFiPEcl-ULowT0GEhApc2V4BRdqx/view?usp=sharing
+video link https://drive.google.com/file/d/1pGJ7ASKh9eJAPlZrtrrb9rbyuCVlanBf/view?usp=sharing
 <div align="center">
 
 ![CERP](https://img.shields.io/badge/CERP-Campus%20Portal-00f5ff?style=for-the-badge&logo=react)
@@ -172,4 +172,5 @@ All club admins share the same password: **`ClubAdmin@123`**
 4. **Interactive Calendar** — Month/week/day/agenda views dynamically populated with event timings.
 5. **Role-Isolated Admin Panel** — A robust management panel that securely restricts creation capabilities based on user role.
 6. **User Management** — Superadmins can dynamically assign clubs to standard users using an intuitive dropdown UI.
+
 
