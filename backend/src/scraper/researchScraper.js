@@ -58,6 +58,26 @@ function getDomainFromConcepts(concepts) {
   return null;
 }
 
+function buildAbstractFromIndex(abstractIndex, maxWords = 50) {
+  if (!abstractIndex || typeof abstractIndex !== 'object') return null;
+
+  const orderedWords = [];
+  for (const [word, positions] of Object.entries(abstractIndex)) {
+    for (const position of positions || []) {
+      orderedWords[position] = word;
+    }
+  }
+
+  const abstract = orderedWords
+    .filter(Boolean)
+    .slice(0, maxWords)
+    .join(' ')
+    .trim();
+
+  if (!abstract) return null;
+  return orderedWords.length > maxWords ? `${abstract}...` : abstract;
+}
+
 // Fetch publications for a professor using OpenAlex
 async function fetchProfessorPublications(professor) {
   const publications = [];
@@ -89,9 +109,7 @@ async function fetchProfessorPublications(professor) {
           .slice(0, 5)
           .map(a => a.author?.display_name || 'Unknown')
           .join(', '),
-        abstract: work.abstract_inverted_index 
-          ? Object.keys(work.abstract_inverted_index).slice(0, 50).join(' ') + '...'
-          : null,
+        abstract: buildAbstractFromIndex(work.abstract_inverted_index),
         journal: work.primary_location?.source?.display_name || work.host_venue?.display_name || null,
         publication_year: work.publication_year,
         citation_count: work.cited_by_count || 0,
