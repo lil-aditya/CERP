@@ -1,5 +1,7 @@
 ﻿# CERP – Campus Engagement & Research Portal
+
 video link https://drive.google.com/file/d/1pGJ7ASKh9eJAPlZrtrrb9rbyuCVlanBf/view?usp=sharing
+
 <div align="center">
 
 ![CERP](https://img.shields.io/badge/CERP-Campus%20Portal-00f5ff?style=for-the-badge&logo=react)
@@ -18,7 +20,7 @@ A unified full-stack portal that centralizes campus events, club announcements, 
 ## ✨ Features
 
 - 🎯 **Unified Dashboard** - All campus activities in one place
-- 📅 **Smart Calendar** - Event scheduling with conflict detection  
+- 📅 **Smart Calendar** - Event scheduling with conflict detection
 - 🔬 **Research Discovery** - Faculty publications from OpenAlex API
 - 📧 **Gmail Integration** - Auto-categorize club emails with NLP
 - 🎨 **Cyber Theme** - Stunning glassmorphism dark UI
@@ -27,17 +29,18 @@ A unified full-stack portal that centralizes campus events, club announcements, 
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|---|---|
+| Layer    | Technology                                    |
+| -------- | --------------------------------------------- |
 | Frontend | React 18 + Vite + Tailwind CSS + Lucide icons |
-| Backend | Node.js + Express |
-| Database | **SQLite** (zero config!) |
-| Auth | JWT + bcryptjs |
-| AI/NLP | Natural.js for email categorization |
+| Backend  | Node.js + Express                             |
+| Database | **SQLite** (zero config!)                     |
+| Auth     | JWT + bcryptjs                                |
+| AI/NLP   | Natural.js for email categorization           |
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - **Node.js** v18+
 - **npm** or **yarn**
 
@@ -79,10 +82,10 @@ docker-compose up --build
 
 ### Option 3: One-Click Deploy
 
-| Platform | Deploy |
-|----------|--------|
-| Railway | [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app) |
-| Render | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com) |
+| Platform | Deploy                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------ |
+| Railway  | [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app)                      |
+| Render   | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com) |
 
 👉 See [**DEPLOYMENT.md**](./DEPLOYMENT.md) for detailed instructions.
 
@@ -90,8 +93,8 @@ docker-compose up --build
 
 ## 🔐 Default Credentials
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role        | Email                   | Password              |
+| ----------- | ----------------------- | --------------------- |
 | Super Admin | `superadmin@iitj.ac.in` | `SuperAdmin@CERP2026` |
 
 ---
@@ -122,35 +125,40 @@ cerp/
 
 ## 🔐 Role-Based Access
 
-| Role | Capabilities |
-|---|---|
-| **user** | View personalized events, research, and announcements based on selected preferences (clubs & domains). |
+| Role           | Capabilities                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **user**       | View personalized events, research, and announcements based on selected preferences (clubs & domains).                                |
 | **club_admin** | Has global view access to all content, but can only explicitly create, edit, and delete events/announcements for their assigned club. |
-| **admin** | Has total, unrestricted global view and edit access for all content on the platform. |
-| **superadmin** | All admin capabilities + access to User Management (promote/demote roles and assign clubs to club managers). |
+| **admin**      | Has total, unrestricted global view and edit access for all content on the platform.                                                  |
+| **superadmin** | All admin capabilities + access to User Management (promote/demote roles and assign clubs to club managers).                          |
 
 ### Sample Accounts Created by Seeds:
 
 #### Superadmin
+
 ```
 Email:    superadmin@iitj.ac.in
 Password: SuperAdmin@123
 ```
 
 #### Admin
+
 ```
 Email:    admin@iitj.ac.in
 Password: Admin@123
 ```
 
 #### Test User (Prefers Coding + AI/ML)
+
 ```
 Email:    testuser@iitj.ac.in
 Password: User@123
 ```
 
 #### Club Admins (One per club)
+
 All club admins share the same password: **`ClubAdmin@123`**
+
 - `codingclub_admin@iitj.ac.in` (Coding Club)
 - `roboticsclub_admin@iitj.ac.in` (Robotics Club)
 - `aimlclub_admin@iitj.ac.in` (AI/ML Club)
