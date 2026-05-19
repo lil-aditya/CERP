@@ -149,12 +149,24 @@ export default function Announcements() {
                           'bg-white/10 text-slate-400 border border-white/10'
                         }`}>{Math.round(email.confidence * 100)}% match</span>
                       )}
+                      {email.local_llm_status && (
+                        <span className="badge badge-cyan">Private digest</span>
+                      )}
                       <span className="text-xs text-slate-500 font-mono">{formatDate(email.received_at)}</span>
                     </div>
                     <h3 className="text-sm font-semibold text-white">{email.subject}</h3>
                     <p className="text-xs text-cyan-400/60 mt-1">From: {email.from_name} ({email.from_email})</p>
                     {email.snippet && (
                       <p className="text-xs text-slate-500 mt-2 leading-relaxed">{email.snippet}</p>
+                    )}
+                    {Array.isArray(email.interest_tags) && email.interest_tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {email.interest_tags.slice(0, 5).map((tag) => (
+                          <span key={tag} className="text-[10px] px-2 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -177,6 +189,9 @@ export default function Announcements() {
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     {ann.club_name && (
                       <span className="badge badge-purple">{ann.club_name}</span>
+                    )}
+                    {ann.semantic_score > 0 && (
+                      <span className="badge badge-cyan">{Math.round(ann.semantic_score * 100)}% semantic</span>
                     )}
                     <span className="text-xs text-slate-500 font-mono">{formatDate(ann.published_at)}</span>
                   </div>
