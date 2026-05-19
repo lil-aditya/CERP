@@ -1,13 +1,14 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { authenticate } = require('../middleware/auth');
+const semanticSearch = require('../services/semanticSearch');
 
 const router = express.Router();
 
 // GET /api/announcements - List announcements with filtering
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const { club_id, search, limit } = req.query;
+    const { club_id, search, limit, semantic } = req.query;
     let query = `
       SELECT a.*, c.name as club_name 
       FROM announcements a 
@@ -20,20 +21,30 @@ router.get('/', (req, res) => {
       query += ` AND a.club_id = ?`;
       params.push(club_id);
     }
-    if (search) {
+    const useSemanticSearch = search && semantic !== 'false';
+
+    if (search && !useSemanticSearch) {
       query += ` AND (a.title LIKE ? OR a.content LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    query += ' ORDER BY a.published_at DESC';
+    const result = pool.query(query, params);
 
-    if (limit) {
-      query += ` LIMIT ?`;
-      params.push(parseInt(limit));
+    if (useSemanticSearch) {
+      const ranked = await semanticSearch.semanticRankRows(
+        result.rows,
+        search,
+        'announcement',
+        semanticSearch.announcementText,
+        { minScore: 0.04 }
+      );
+      return res.json(limit ? ranked.slice(0, parseInt(limit)) : ranked);
     }
 
-    const result = pool.query(query, params);
-    res.json(result.rows);
+    const rows = result.rows.sort((a, b) =>
+      String(b.published_at || '').localeCompare(String(a.published_at || ''))
+    );
+    res.json(limit ? rows.slice(0, parseInt(limit)) : rows);
   } catch (err) {
     console.error('Announcements error:', err);
     res.status(500).json({ error: 'Failed to fetch announcements.' });
@@ -41,17 +52,11 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/announcements/feed - Personalized announcement feed
-router.get('/feed', authenticate, (req, res) => {
+router.get('/feed', authenticate, async (req, res) => {
   try {
-    const result = pool.query(
-      `SELECT a.*, c.name as club_name 
-       FROM announcements a 
-       LEFT JOIN clubs c ON a.club_id = c.id 
-       WHERE a.club_id IN (SELECT club_id FROM user_clubs WHERE user_id = ?)
-       ORDER BY a.published_at DESC`,
-      [req.user.id]
-    );
-    res.json(result.rows);
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const rows = await semanticSearch.rankAnnouncementsForUser(req.user.id, limit);
+    res.json(rows);
   } catch (err) {
     console.error('Announcement feed error:', err);
     res.status(500).json({ error: 'Failed to fetch announcement feed.' });
