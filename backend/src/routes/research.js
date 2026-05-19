@@ -2,13 +2,14 @@ const express = require('express');
 const pool = require('../db/pool');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { scrapeAllResearch } = require('../scraper/researchScraper');
+const semanticSearch = require('../services/semanticSearch');
 
 const router = express.Router();
 
 // GET /api/research - Search & filter publications
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const { search, department, domain_id, professor_id, year_from, year_to, min_citations, sort_by, order } = req.query;
+    const { search, department, domain_id, professor_id, year_from, year_to, min_citations, sort_by, order, semantic } = req.query;
     let query = `
       SELECT p.*, pr.name as professor_name, pr.department, d.name as domain_name
       FROM publications p
@@ -18,7 +19,9 @@ router.get('/', (req, res) => {
     `;
     const params = [];
 
-    if (search) {
+    const useSemanticSearch = search && semantic !== 'false';
+
+    if (search && !useSemanticSearch) {
       query += ` AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
@@ -47,13 +50,34 @@ router.get('/', (req, res) => {
       params.push(parseInt(min_citations));
     }
 
+    const result = pool.query(query, params);
+
+    if (useSemanticSearch) {
+      const ranked = await semanticSearch.semanticRankRows(
+        result.rows,
+        search,
+        'publication',
+        semanticSearch.publicationText,
+        { minScore: 0.02 }
+      );
+      return res.json(ranked);
+    }
+
     // Sorting
     const validSorts = ['citation_count', 'publication_year', 'title', 'created_at'];
     const sortField = validSorts.includes(sort_by) ? sort_by : 'publication_year';
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
-    query += ` ORDER BY p.${sortField} ${sortOrder}`;
+    result.rows.sort((a, b) => {
+      const left = a[sortField] ?? '';
+      const right = b[sortField] ?? '';
+      if (typeof left === 'number' && typeof right === 'number') {
+        return sortOrder === 'ASC' ? left - right : right - left;
+      }
+      return sortOrder === 'ASC'
+        ? String(left).localeCompare(String(right))
+        : String(right).localeCompare(String(left));
+    });
 
-    const result = pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Research error:', err);
@@ -62,18 +86,11 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/research/feed - Personalized research based on user domains
-router.get('/feed', authenticate, (req, res) => {
+router.get('/feed', authenticate, async (req, res) => {
   try {
-    const result = pool.query(
-      `SELECT p.*, pr.name as professor_name, pr.department, d.name as domain_name
-       FROM publications p
-       LEFT JOIN professors pr ON p.professor_id = pr.id
-       LEFT JOIN domains d ON p.domain_id = d.id
-       WHERE p.domain_id IN (SELECT domain_id FROM user_domains WHERE user_id = ?)
-       ORDER BY p.publication_year DESC, p.citation_count DESC`,
-      [req.user.id]
-    );
-    res.json(result.rows);
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const rows = await semanticSearch.rankPublicationsForUser(req.user.id, limit);
+    res.json(rows);
   } catch (err) {
     console.error('Research feed error:', err);
     res.status(500).json({ error: 'Failed to fetch research feed.' });
