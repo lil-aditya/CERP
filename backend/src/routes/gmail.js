@@ -99,7 +99,7 @@ router.post('/sync', authenticate, async (req, res) => {
     // Also re-categorize existing emails with the improved NLP engine
     let recategorized = 0;
     try {
-      recategorized = gmailService.recategorizeAllEmails(req.user.id);
+      recategorized = await gmailService.recategorizeAllEmails(req.user.id);
     } catch (e) { console.log('[Gmail] Recategorize during sync skipped:', e.message); }
 
     console.log(`[Gmail] Sync for user ${req.user.id}: ${result.fetched} fetched, ${result.categorized} new, ${recategorized} recategorized`);
@@ -190,14 +190,14 @@ router.delete('/disconnect', authenticate, (req, res) => {
  * POST /api/gmail/recategorize
  * Re-run NLP categorization on all cached emails (e.g. after preferences change).
  */
-router.post('/recategorize', authenticate, (req, res) => {
+router.post('/recategorize', authenticate, async (req, res) => {
   try {
     const status = gmailService.isGmailConnected(req.user.id);
     if (!status.connected) {
       return res.status(400).json({ error: 'Gmail not connected.' });
     }
 
-    const updated = gmailService.recategorizeAllEmails(req.user.id);
+    const updated = await gmailService.recategorizeAllEmails(req.user.id);
     console.log(`[Gmail] Re-categorized ${updated} emails for user ${req.user.id}`);
     res.json({ message: 'Re-categorization complete.', updated });
   } catch (err) {

@@ -1,6 +1,11 @@
 const { google } = require('googleapis');
 const pool = require('../db/pool');
+const { runMigrations } = require('../db/migrations');
+const privacyEngine = require('./privacyEngine');
+const localLlmService = require('./localLlmService');
 const smartCategorizer = require('./smartCategorizer');
+
+runMigrations();
 
 /**
  * Gmail Service — handles OAuth client creation, email fetching,
@@ -200,6 +205,130 @@ async function fetchEmails(userId, maxResults = 50) {
   return emails;
 }
 
+async function privacyDigestEmail(email, index = 0) {
+  const anonymized = privacyEngine.anonymizeEmail(email);
+  const maxLlmPerSync = parseInt(process.env.EMAIL_DIGEST_MAX_LLM_PER_SYNC || '10', 10);
+  const allowOllama = index < maxLlmPerSync;
+  const digest = await localLlmService.generateEmailDigest(anonymized, { allowOllama });
+
+  return {
+    ...anonymized,
+    digest_summary: digest.summary,
+    interest_tags: JSON.stringify(digest.tags || []),
+    local_llm_status: digest.status,
+    digest_generated_at: new Date().toISOString(),
+  };
+}
+
+async function privacyDigestEmails(emails) {
+  const processed = [];
+  for (let i = 0; i < emails.length; i++) {
+    processed.push(await privacyDigestEmail(emails[i], i));
+  }
+  return processed;
+}
+
+function parseInterestTags(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return String(value).split(',').map((tag) => tag.trim()).filter(Boolean);
+  }
+}
+
+function toSafeEmailRow(row) {
+  const safeRow = redactStoredRowIfNeeded(row);
+  const subject = safeRow.sanitized_subject || safeRow.subject || '';
+  const snippet = safeRow.digest_summary || safeRow.sanitized_snippet || safeRow.snippet || '';
+  const bodyText = safeRow.sanitized_body_text || safeRow.body_text || '';
+
+  return {
+    ...safeRow,
+    from_name: safeRow.from_name || (safeRow.sender_domain ? `[${safeRow.sender_domain}]` : ''),
+    from_email: safeRow.sender_domain ? `[REDACTED_EMAIL]@${safeRow.sender_domain}` : '[REDACTED_EMAIL]',
+    subject,
+    snippet,
+    body_text: bodyText,
+    interest_tags: parseInterestTags(safeRow.interest_tags),
+  };
+}
+
+function redactStoredRowIfNeeded(row) {
+  if (row.anonymized_at) return row;
+
+  const anonymized = privacyEngine.anonymizeEmail(row);
+  const digest = localLlmService.extractiveDigest(anonymized, 'extractive_read_repair');
+  const repaired = {
+    ...row,
+    ...anonymized,
+    digest_summary: row.digest_summary || digest.summary,
+    interest_tags: row.interest_tags || JSON.stringify(digest.tags || []),
+    local_llm_status: row.local_llm_status || digest.status,
+    digest_generated_at: row.digest_generated_at || new Date().toISOString(),
+  };
+
+  try {
+    pool.raw.prepare(`
+      UPDATE gmail_emails
+      SET from_name = ?,
+          subject = ?,
+          snippet = ?,
+          body_text = ?,
+          sanitized_subject = ?,
+          sanitized_snippet = ?,
+          sanitized_body_text = ?,
+          privacy_report = ?,
+          digest_summary = ?,
+          interest_tags = ?,
+          local_llm_status = ?,
+          digest_generated_at = ?,
+          anonymized_at = ?,
+          sender_domain = ?,
+          from_email_hash = ?
+      WHERE id = ?
+    `).run(
+      repaired.from_name,
+      repaired.subject,
+      repaired.snippet,
+      (repaired.body_text || '').substring(0, 4000),
+      repaired.sanitized_subject,
+      repaired.sanitized_snippet,
+      (repaired.sanitized_body_text || '').substring(0, 4000),
+      repaired.privacy_report,
+      repaired.digest_summary,
+      repaired.interest_tags,
+      repaired.local_llm_status,
+      repaired.digest_generated_at,
+      repaired.anonymized_at,
+      repaired.sender_domain,
+      repaired.from_email_hash,
+      row.id
+    );
+  } catch (err) {
+    console.log('[Gmail] Read-time redaction repair skipped:', err.message);
+  }
+
+  return repaired;
+}
+
+function backfillStoredEmailPrivacy(limit = 500) {
+  const rows = pool.raw.prepare(`
+    SELECT *
+    FROM gmail_emails
+    WHERE anonymized_at IS NULL
+    ORDER BY fetched_at DESC
+    LIMIT ?
+  `).all(limit);
+
+  for (const row of rows) {
+    redactStoredRowIfNeeded(row);
+  }
+
+  return rows.length;
+}
+
 // Categorize emails using NLP-powered smart categorizer
 // Uses TF-IDF, cosine similarity, fuzzy matching, stemming, synonyms
 function categorizeEmails(emails, userId) {
@@ -211,14 +340,34 @@ async function syncGmailEmails(userId, maxResults = 50) {
   const rawEmails = await fetchEmails(userId, maxResults);
   if (rawEmails.length === 0) return { fetched: 0, categorized: 0 };
 
-  const categorized = categorizeEmails(rawEmails, userId);
+  const privacySafeEmails = await privacyDigestEmails(rawEmails);
+  const categorized = categorizeEmails(privacySafeEmails, userId);
 
   const db = pool.raw;
   const insert = db.prepare(`
-    INSERT INTO gmail_emails (user_id, message_id, from_email, from_name, subject, snippet, body_text, received_at, category, matched_club_id, confidence, is_event)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO gmail_emails (
+      user_id, message_id, from_email, from_name, subject, snippet, body_text,
+      sanitized_subject, sanitized_snippet, sanitized_body_text, privacy_report,
+      digest_summary, interest_tags, local_llm_status, digest_generated_at,
+      anonymized_at, sender_domain, from_email_hash,
+      received_at, category, matched_club_id, confidence, is_event
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id, message_id) DO UPDATE SET
+      subject = excluded.subject,
+      snippet = excluded.snippet,
       body_text = COALESCE(excluded.body_text, gmail_emails.body_text),
+      sanitized_subject = excluded.sanitized_subject,
+      sanitized_snippet = excluded.sanitized_snippet,
+      sanitized_body_text = excluded.sanitized_body_text,
+      privacy_report = excluded.privacy_report,
+      digest_summary = excluded.digest_summary,
+      interest_tags = excluded.interest_tags,
+      local_llm_status = excluded.local_llm_status,
+      digest_generated_at = excluded.digest_generated_at,
+      anonymized_at = excluded.anonymized_at,
+      sender_domain = excluded.sender_domain,
+      from_email_hash = excluded.from_email_hash,
       category = excluded.category,
       matched_club_id = excluded.matched_club_id,
       confidence = excluded.confidence,
@@ -230,8 +379,12 @@ async function syncGmailEmails(userId, maxResults = 50) {
     for (const e of emails) {
       const result = insert.run(
         userId, e.message_id, e.from_email, e.from_name, e.subject, e.snippet,
-        (e.body_text || '').substring(0, 2000), e.received_at, e.category,
-        e.matched_club_id, e.confidence, e.is_event
+        (e.body_text || '').substring(0, 4000),
+        e.sanitized_subject, e.sanitized_snippet,
+        (e.sanitized_body_text || '').substring(0, 4000),
+        e.privacy_report, e.digest_summary, e.interest_tags, e.local_llm_status,
+        e.digest_generated_at, e.anonymized_at, e.sender_domain, e.from_email_hash,
+        e.received_at, e.category, e.matched_club_id, e.confidence, e.is_event
       );
       if (result.changes > 0) count++;
     }
@@ -240,6 +393,88 @@ async function syncGmailEmails(userId, maxResults = 50) {
 
   const newCount = insertMany(categorized);
   return { fetched: rawEmails.length, categorized: newCount };
+}
+
+async function recategorizeAllEmails(userId) {
+  const db = pool.raw;
+  const existingEmails = db.prepare(
+    'SELECT * FROM gmail_emails WHERE user_id = ?'
+  ).all(userId);
+
+  if (existingEmails.length === 0) return 0;
+
+  const privacySafeEmails = [];
+  for (let i = 0; i < existingEmails.length; i++) {
+    const row = existingEmails[i];
+    const source = {
+      ...row,
+      subject: row.sanitized_subject || row.subject || '',
+      snippet: row.sanitized_snippet || row.snippet || '',
+      body_text: row.sanitized_body_text || row.body_text || '',
+    };
+    privacySafeEmails.push(await privacyDigestEmail(source, i));
+  }
+
+  const categorized = categorizeEmails(privacySafeEmails, userId);
+
+  const update = db.prepare(`
+    UPDATE gmail_emails
+    SET from_name = ?,
+        subject = ?,
+        snippet = ?,
+        body_text = ?,
+        sanitized_subject = ?,
+        sanitized_snippet = ?,
+        sanitized_body_text = ?,
+        privacy_report = ?,
+        digest_summary = ?,
+        interest_tags = ?,
+        local_llm_status = ?,
+        digest_generated_at = ?,
+        anonymized_at = ?,
+        sender_domain = ?,
+        from_email_hash = ?,
+        category = ?,
+        matched_club_id = ?,
+        confidence = ?,
+        is_event = ?
+    WHERE id = ?
+  `);
+
+  const updateAll = db.transaction((emails) => {
+    let updated = 0;
+    for (const email of emails) {
+      update.run(
+        email.from_name,
+        email.subject,
+        email.snippet,
+        (email.body_text || '').substring(0, 4000),
+        email.sanitized_subject,
+        email.sanitized_snippet,
+        (email.sanitized_body_text || '').substring(0, 4000),
+        email.privacy_report,
+        email.digest_summary,
+        email.interest_tags,
+        email.local_llm_status,
+        email.digest_generated_at,
+        email.anonymized_at,
+        email.sender_domain,
+        email.from_email_hash,
+        email.category,
+        email.matched_club_id,
+        email.confidence,
+        email.is_event,
+        email.id
+      );
+      updated++;
+    }
+    return updated;
+  });
+
+  return updateAll(categorized.map((email, index) => ({
+    ...email,
+    id: existingEmails[index].id,
+  })));
 }
 
 // Get categorized emails for a user, filtered by their preferences
@@ -272,7 +507,7 @@ function getCategorizedEmails(userId, { category, club_id, preferred_only, limit
   query += ' ORDER BY ge.received_at DESC LIMIT ?';
   params.push(parseInt(limit));
 
-  return db.prepare(query).all(params);
+  return db.prepare(query).all(params).map(toSafeEmailRow);
 }
 
 module.exports = {
@@ -286,5 +521,6 @@ module.exports = {
   categorizeEmails,
   syncGmailEmails,
   getCategorizedEmails,
-  recategorizeAllEmails: smartCategorizer.recategorizeAllEmails,
+  recategorizeAllEmails,
+  backfillStoredEmailPrivacy,
 };
