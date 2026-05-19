@@ -424,7 +424,13 @@ const WEIGHTS = {
 };
 
 function categorizeEmail(email, clubProfiles, userClubIds = []) {
-  const emailText = `${email.subject || ''} ${email.snippet || ''} ${email.body_text || ''} ${email.from_name || ''}`;
+  const emailText = [
+    email.sanitized_subject || email.subject || '',
+    email.sanitized_snippet || email.snippet || '',
+    email.sanitized_body_text || email.body_text || '',
+    email.digest_summary || '',
+    email.from_name || '',
+  ].join(' ');
   const fromEmail = (email.from_email || '').toLowerCase();
 
   // Compute all signals
