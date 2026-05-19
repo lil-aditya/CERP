@@ -1,4 +1,7 @@
 const db = require('./src/db/pool');
+const { runMigrations } = require('./src/db/migrations');
+
+runMigrations();
 
 // Check tables
 const tables = db.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").rows;
