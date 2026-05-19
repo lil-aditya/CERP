@@ -22,8 +22,8 @@ export default function Dashboard() {
     try {
       const [eventsRes, annRes, researchRes] = await Promise.all([
         api.get('/events', { params: { from_date: new Date().toISOString() } }),
-        api.get('/announcements', { params: { limit: 5 } }),
-        api.get('/research', { params: { sort_by: 'publication_year', order: 'desc' } }),
+        api.get('/announcements/feed', { params: { limit: 5 } }),
+        api.get('/research/feed', { params: { limit: 5 } }),
       ]);
       setUpcomingEvents(eventsRes.data.slice(0, 5));
       setRecentAnnouncements(annRes.data);
@@ -267,6 +267,9 @@ export default function Dashboard() {
                     <span className="text-xs text-slate-500">{paper.journal}</span>
                     <span className="text-slate-600">·</span>
                     <span className="badge badge-green text-[10px]">{paper.citation_count} citations</span>
+                    {paper.semantic_score > 0 && (
+                      <span className="badge badge-cyan text-[10px]">{Math.round(paper.semantic_score * 100)}% match</span>
+                    )}
                   </div>
                 </div>
                 {paper.url && (
