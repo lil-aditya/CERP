@@ -180,6 +180,9 @@ export default function Research() {
                     <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">{pub.abstract}</p>
                   )}
                   <div className="flex flex-wrap items-center gap-2 mt-4">
+                    {pub.semantic_score > 0 && (
+                      <span className="badge badge-cyan">{Math.round(pub.semantic_score * 100)}% semantic</span>
+                    )}
                     {pub.journal && (
                       <span className="badge badge-purple">{pub.journal}</span>
                     )}
