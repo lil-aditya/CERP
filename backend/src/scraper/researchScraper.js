@@ -1,5 +1,6 @@
 ﻿const axios = require('axios');
 const pool = require('../db/pool');
+const semanticSearch = require('../services/semanticSearch');
 
 /**
  * Research scraper using OpenAlex API (free, no auth required)
@@ -174,11 +175,16 @@ async function scrapeAllResearch() {
           );
 
           if (existing.rows.length === 0) {
-            pool.query(
+            const inserted = pool.query(
               `INSERT INTO publications (title, authors, abstract, journal, publication_year, citation_count, url, doi, professor_id, domain_id, scraped_at) 
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
               [pub.title, pub.authors, pub.abstract, pub.journal, pub.publication_year, pub.citation_count, pub.url, pub.doi, pub.professor_id, pub.domain_id]
             );
+            try {
+              await semanticSearch.indexPublication(inserted.lastID);
+            } catch (embeddingErr) {
+              console.log(`[Semantic] Publication indexing skipped: ${embeddingErr.message}`);
+            }
             totalNew++;
           }
         } catch (insertErr) {
