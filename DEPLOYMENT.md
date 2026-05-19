@@ -21,7 +21,7 @@ This guide covers multiple deployment options for the Campus Engagement & Resear
 
 ## Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Docker & Docker Compose (for containerized deployment)
 - Git
@@ -114,7 +114,7 @@ Railway offers the easiest deployment with automatic builds.
 
 1. New → Static Site
 2. Settings:
-   - **Root Directory:** `frontend`  
+   - **Root Directory:** `frontend`
    - **Build Command:** `npm install && npm run build`
    - **Publish Directory:** `dist`
 3. Add environment variable: `VITE_API_URL`
@@ -127,6 +127,7 @@ Railway offers the easiest deployment with automatic builds.
 2. Configure components:
 
 **Backend Component:**
+
 ```yaml
 name: cerp-backend
 source_dir: /backend
@@ -137,6 +138,7 @@ instance_size_slug: basic-xxs
 ```
 
 **Frontend Component:**
+
 ```yaml
 name: cerp-frontend
 source_dir: /frontend
@@ -275,25 +277,26 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 
 ## Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `NODE_ENV` | `production` or `development` | Yes |
-| `PORT` | Backend port (default: 5000) | No |
-| `JWT_SECRET` | Secret key for JWT tokens (min 32 chars) | Yes |
-| `JWT_EXPIRES_IN` | Token expiration (e.g., `7d`) | No |
-| `SUPERADMIN_EMAIL` | Initial admin email | Yes |
-| `SUPERADMIN_PASSWORD` | Initial admin password | Yes |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | For Gmail |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth secret | For Gmail |
-| `GOOGLE_REDIRECT_URI` | OAuth callback URL | For Gmail |
-| `VITE_API_URL` | Backend URL (frontend build) | Yes |
-| `FRONTEND_URL` | Frontend URL (for CORS) | Yes |
+| Variable               | Description                              | Required  |
+| ---------------------- | ---------------------------------------- | --------- |
+| `NODE_ENV`             | `production` or `development`            | Yes       |
+| `PORT`                 | Backend port (default: 5000)             | No        |
+| `JWT_SECRET`           | Secret key for JWT tokens (min 32 chars) | Yes       |
+| `JWT_EXPIRES_IN`       | Token expiration (e.g., `7d`)            | No        |
+| `SUPERADMIN_EMAIL`     | Initial admin email                      | Yes       |
+| `SUPERADMIN_PASSWORD`  | Initial admin password                   | Yes       |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID                   | For Gmail |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth secret                      | For Gmail |
+| `GOOGLE_REDIRECT_URI`  | OAuth callback URL                       | For Gmail |
+| `VITE_API_URL`         | Backend URL (frontend build)             | Yes       |
+| `FRONTEND_URL`         | Frontend URL (for CORS)                  | Yes       |
 
 ---
 
 ## Database Considerations
 
 CERP uses **SQLite** by default, which is perfect for:
+
 - Small to medium deployments (< 10,000 users)
 - Single-instance deployments
 - Quick setup with no external dependencies
@@ -311,12 +314,14 @@ If you need horizontal scaling, consider migrating to **PostgreSQL**:
 ## SSL/HTTPS Setup
 
 ### Using Certbot (VPS):
+
 ```bash
 sudo certbot --nginx -d yourdomain.com
 sudo certbot renew --dry-run  # Test auto-renewal
 ```
 
 ### Using Cloudflare (Any deployment):
+
 1. Add your domain to Cloudflare
 2. Enable "Full (Strict)" SSL mode
 3. Point DNS to your server
