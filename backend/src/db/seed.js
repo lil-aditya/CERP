@@ -20,6 +20,7 @@ function seed() {
     // Clear old data for fresh seed (preserve users and gmail_tokens)
     db.exec(`
       DELETE FROM email_match_rules;
+      DELETE FROM semantic_embeddings;
       DELETE FROM gmail_emails;
       DELETE FROM announcements;
       DELETE FROM events;
@@ -34,7 +35,7 @@ function seed() {
     console.log('Old data cleared (users & gmail tokens preserved).');
 
     // Reset AUTOINCREMENT for clubs so IDs are predictable
-    db.exec(`DELETE FROM sqlite_sequence WHERE name IN ('clubs', 'domains', 'professors', 'events', 'announcements', 'publications', 'email_match_rules');`);
+    db.exec(`DELETE FROM sqlite_sequence WHERE name IN ('clubs', 'domains', 'professors', 'events', 'announcements', 'publications', 'email_match_rules', 'semantic_embeddings');`);
 
     // Seed Super Admin
     const superAdminPassword = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@CERP2026';
