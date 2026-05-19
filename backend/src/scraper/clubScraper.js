@@ -1,6 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db/pool');
+const semanticSearch = require('../services/semanticSearch');
 
 /**
  * Scrape club announcements from club websites.
@@ -90,11 +91,16 @@ async function scrapeAllClubAnnouncements() {
           );
 
           if (existing.rows.length === 0) {
-            pool.query(
+            const inserted = pool.query(
               `INSERT INTO announcements (title, content, source_url, club_id, published_at, scraped_at) 
                VALUES (?, ?, ?, ?, ?, datetime('now'))`,
               [ann.title, ann.content, ann.source_url, ann.club_id, ann.published_at]
             );
+            try {
+              await semanticSearch.indexAnnouncement(inserted.lastID);
+            } catch (embeddingErr) {
+              console.log(`[Semantic] Announcement indexing skipped: ${embeddingErr.message}`);
+            }
             totalNew++;
           }
         } catch (insertErr) {
