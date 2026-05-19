@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const pool = require('./db/pool');
+const { runMigrations } = require('./db/migrations');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const clubRoutes = require('./routes/clubs');
@@ -13,11 +14,22 @@ const announcementRoutes = require('./routes/announcements');
 const adminRoutes = require('./routes/admin');
 const scraperRoutes = require('./routes/scraper');
 const gmailRoutes = require('./routes/gmail');
+const gmailService = require('./services/gmailService');
 const { scrapeAllResearch } = require('./scraper/researchScraper');
 const { scrapeAllClubAnnouncements } = require('./scraper/clubScraper');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+runMigrations();
+try {
+  const repairedEmails = gmailService.backfillStoredEmailPrivacy();
+  if (repairedEmails > 0) {
+    console.log(`[Privacy] Redacted ${repairedEmails} previously cached Gmail emails.`);
+  }
+} catch (err) {
+  console.log(`[Privacy] Gmail privacy backfill skipped: ${err.message}`);
+}
 
 // Middleware
 app.use(cors());
