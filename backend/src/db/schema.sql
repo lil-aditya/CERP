@@ -126,6 +126,17 @@ CREATE TABLE IF NOT EXISTS gmail_emails (
   subject TEXT,
   snippet TEXT,
   body_text TEXT,
+  sanitized_subject TEXT,
+  sanitized_snippet TEXT,
+  sanitized_body_text TEXT,
+  privacy_report TEXT,
+  digest_summary TEXT,
+  interest_tags TEXT,
+  local_llm_status TEXT,
+  digest_generated_at TEXT,
+  anonymized_at TEXT,
+  sender_domain TEXT,
+  from_email_hash TEXT,
   received_at TEXT,
   category TEXT,
   matched_club_id INTEGER REFERENCES clubs(id) ON DELETE SET NULL,
@@ -144,6 +155,23 @@ CREATE TABLE IF NOT EXISTS email_match_rules (
   UNIQUE(club_id, rule_type, pattern)
 );
 
+-- Local vector store for semantic recommendations/search
+CREATE TABLE IF NOT EXISTS semantic_embeddings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_type TEXT NOT NULL,
+  entity_id INTEGER NOT NULL,
+  user_id INTEGER DEFAULT 0,
+  text_hash TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  vector_json TEXT NOT NULL,
+  source_preview TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(entity_type, entity_id, user_id)
+);
+
 -- Indexes for search & filtering performance
 CREATE INDEX IF NOT EXISTS idx_publications_year ON publications(publication_year);
 CREATE INDEX IF NOT EXISTS idx_publications_citations ON publications(citation_count);
@@ -158,3 +186,7 @@ CREATE INDEX IF NOT EXISTS idx_gmail_emails_user ON gmail_emails(user_id);
 CREATE INDEX IF NOT EXISTS idx_gmail_emails_category ON gmail_emails(category);
 CREATE INDEX IF NOT EXISTS idx_gmail_emails_club ON gmail_emails(matched_club_id);
 CREATE INDEX IF NOT EXISTS idx_gmail_emails_received ON gmail_emails(received_at);
+CREATE INDEX IF NOT EXISTS idx_gmail_emails_anonymized ON gmail_emails(anonymized_at);
+CREATE INDEX IF NOT EXISTS idx_gmail_emails_sender_domain ON gmail_emails(sender_domain);
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_entity ON semantic_embeddings(entity_type, entity_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_semantic_embeddings_model ON semantic_embeddings(provider, model);
